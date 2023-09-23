@@ -1,5 +1,4 @@
 import mysql.connector
-# import create_tables
 from create_tables import create_tables
 from add_nodes import add_nodes
 from add_events import add_events
