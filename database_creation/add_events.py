@@ -26,6 +26,7 @@ def add_events(mydb):
 
         # Execute the query with the values
         mycursor.execute(sql, values)
+        mydb.commit()
     print("Adding event to events table...")
     
     # Print all events in events table
