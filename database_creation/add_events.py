@@ -9,7 +9,7 @@ def add_events(mydb):
     mycursor.execute("SELECT node_id FROM nodes")
     node_ids = mycursor.fetchall()
     
-    # Get input frpm user for number of events to add
+    # Get input from user for number of events to add
     num_events = int(input("How many events would you like to add? "))
     
     # Create list of event times, animal names (hawk, coyote, hog, or fox),  that corresponds with length of node_ids list
