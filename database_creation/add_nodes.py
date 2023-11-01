@@ -8,10 +8,11 @@ def add_nodes(mydb):
     node_names = []
     while len(node_names) < num_nodes:
         node_names.append("Node " + str(len(node_names)+1))    
-    # Add all nodes to the nodes table
+    # Add all nodes to the nodes table and ip address
+    ip_address = "192.168.30.130"
     for name in node_names:
-        sql = "INSERT INTO nodes (name) VALUES (%s)"
-        val = (name,)
+        sql = "INSERT INTO nodes (name, ip_address) VALUES (%s, %s)"
+        val = (name, ip_address)
         mycursor.execute(sql, val)
         mydb.commit()
     
