@@ -1,6 +1,7 @@
 import { query } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(request : {request:any}, { params }: { params: { node_id: string } }) {
+export async function GET(request : {request:NextRequest},response:{response:NextResponse}, { params }: { params: { node_id: string } }) {
     const node_id = params.node_id
     const node_data = await query({
         query: `SELECT * FROM events WHERE node_id = ${node_id}`,

@@ -5,7 +5,16 @@ import {
     Collapsible,
     CollapsibleContent,
     CollapsibleTrigger,
-  } from "@/components/ui/collapsible"
+} from "@/components/ui/collapsible"
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
   
   async function getNodeList() {
     const res = await fetch('http://localhost:3000/api/node_list')
@@ -30,12 +39,31 @@ import {
   
   async function NodeListCollapsible({node_id}:{node_id:any}){
     let node_data = await getNodeData(node_id)
-    
+    //console.log(node_data[1])
     return(
         <Collapsible key={node_id} className="border p-4">
           <CollapsibleTrigger key={node_id}>Node {node_id}</CollapsibleTrigger>
           <CollapsibleContent key={node_id}>
-              {node_data[1]}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Event ID</TableHead>
+                  <TableHead>Animal</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Video</TableHead>
+                </TableRow>
+              </TableHeader>
+            {node_data.map( (data: { event_id: string, animal: string, event_time: string, video: any}) => 
+              <TableBody key={node_id}>
+                <TableRow key={node_data.event_id}>
+                  <TableCell>{data.event_id}</TableCell>
+                  <TableCell>{data.animal}</TableCell>
+                  <TableCell>{data.event_time}</TableCell>
+                  <TableCell>video placeholder</TableCell>
+                </TableRow>
+              </TableBody>
+            )}
+            </Table>
           </CollapsibleContent>
         </Collapsible>
     )

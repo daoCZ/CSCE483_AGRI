@@ -1,6 +1,7 @@
 import { query } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(request : {request:any}) {
+export async function GET() {
     const node_list = await query({
         query: "SELECT DISTINCT node_id FROM events",
         values: [],
