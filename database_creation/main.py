@@ -7,7 +7,7 @@ from add_events import add_events
 mydb = mysql.connector.connect(
     host="localhost",
     user="root",
-    password="Sillysongs1",
+    password="Hogr!ders483",
     database="csce483"
 )
 
