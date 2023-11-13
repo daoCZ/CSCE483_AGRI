@@ -9,7 +9,8 @@ export async function GET(request : {request:NextRequest},{ params }: { params: 
     const node_data = await query({
         query: `SELECT * FROM events 
         WHERE node_id = '${node_id}'
-        AND event_time BETWEEN '${date1}' AND '${date2}'`,
+        AND event_time BETWEEN '${date1}' AND '${date2}'
+        ORDER BY event_time DESC`,
         values: [],
     });
     
