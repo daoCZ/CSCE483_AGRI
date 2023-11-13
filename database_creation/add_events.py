@@ -18,7 +18,7 @@ def add_events(mydb):
         # Generate random datetime object
         event_time = datetime.datetime.now()+random.random()*datetime.timedelta(days=365)
         animal = random.choice(["hawk", "coyote", "hog", "fox"])
-        video = 'video'
+        video = 'video.mp4'
         sql = "INSERT INTO events (node_id, event_time, animal, video) VALUES (%s, %s, %s, %s)"
         
         # Convert the data types of values to match the table columns

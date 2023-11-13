@@ -6,8 +6,8 @@ def create_tables (mydb):
     mycursor.execute("DROP TABLE IF EXISTS nodes")
 
     # Create list of sql commands to create tables
-    create_tables = ["CREATE TABLE nodes (node_id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255))",
-                    "CREATE TABLE events (event_id INT AUTO_INCREMENT PRIMARY KEY, node_id INT, event_time DATETIME, animal VARCHAR(255), video BLOB, FOREIGN KEY (node_id) REFERENCES nodes(node_id))"]
+    create_tables = ["CREATE TABLE nodes (node_id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), ip_address VARCHAR(255))",
+                    "CREATE TABLE events (event_id INT AUTO_INCREMENT PRIMARY KEY, node_id INT, event_time DATETIME, animal VARCHAR(255), video VARCHAR(255), FOREIGN KEY (node_id) REFERENCES nodes(node_id))"]
 
     # Execute the sql commands
     for command in create_tables:
