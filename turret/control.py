@@ -1,16 +1,54 @@
-from simple_pid import PID
+# fov, 130 d, 100 h
+# res, 480p 90fps
 
-#	instantiate the pitch (y axis) and yaw (x axis) controllers
-#	horizontal fov = 100 deg, vertical fov = 62.6438129017 deg, 90fps
-pitch_pid = PID(1, 0.1, 0.05, 0, 0.0111111111, (0.0, 180.0))
-yaw_pid = PID(1, 0.1, 0.05, 0, 0.0111111111, (0.0, 180.0))
+import numpy as np
+import time
+import RPi.GPIO as GPIO
+import concurrent.futures
+# look at library test files for context
+from RpiMotorLib import RpiMotorLib
 
-#	values camera code is supposed to come up with, stubs
-target_dX = 0
-target_dY = 0
+lastTime = None
+Setpoint = None
+errSum = None
+lastErr = None
+kp = None
+ki = None
+kd = None
+SampleTime = 1
 
-#	values control code converts from given camera values, assuming 480p, 4:3 aspect ratio
-target_eY = 0.15625 * target_dX
-target_eP = 0.130507943545 * target_dY
+def Compute():
+	# compute time delta
+	now = time.perf_counter()
+	timeChange = now - lastTime
+	if timeChange >= SampleTime:
+		# error computations
+		error = Setpoint
+		errSum += error * timeChange
+		dErr = (error - lastErr) / timeChange
+		
+		# compute output
+		Output = kp * error + ki * errSum + kd * dErr
+		
+		# memory
+		lastErr = error
+		lastTime = now
 
-#	loop to update control, may/should be a part of main program loop
+def SetTunings(Kp, Ki, Kd):
+	kp = Kp
+	ki = Ki
+	kd = Kd
+
+def SetSampleTime(NewSampleTime):
+	if NewSampleTime > 0:
+		ratio = NewSampleTime/SampleTime
+		ki *= ratio
+		kd /= ratio
+		SampleTime = NewSampleTime
+
+pinsYaw = [17, 27, 22, 5]
+pinsPitch = [23, 24, 25, 16]
+
+YawMotor = RpiMotorLib.BYJMotor("YawMotor", "28BYJ")
+PitchMotor = RpiMotorLib.BYJMotor("PitchMotor", "28BYJ")
+
