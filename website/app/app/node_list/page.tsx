@@ -17,8 +17,8 @@ import {
 } from "@/components/ui/table"
   
   async function getNodeList() {
-    const res = await fetch('http://localhost:3000/api/node_list')
-   
+    const res = await fetch('http://localhost:3000/api/node_list', { cache: 'no-store' })
+    
     if (!res.ok) {
       // This will activate the closest `error.js` Error Boundary
       throw new Error('Failed to fetch data')
@@ -28,8 +28,8 @@ import {
   }
 
   async function getNodeData(node_id:any) {
-    const res = await fetch(`http://localhost:3000/api/${node_id}/node_data`)
-   
+    const res = await fetch(`http://localhost:3000/api/${node_id}/node_data`, { cache: 'no-store' })
+    
     if (!res.ok) {
       throw new Error('Failed to fetch data')
     }
@@ -53,13 +53,13 @@ import {
                   <TableHead>Video</TableHead>
                 </TableRow>
               </TableHeader>
-            {node_data.map( (data: { event_id: string, animal: string, event_time: string, video: any}) => 
+            {node_data.map( (data: { event_id: string, animal: string, event_time: string, video: string}) => 
               <TableBody key={node_id}>
                 <TableRow key={node_data.event_id}>
                   <TableCell>{data.event_id}</TableCell>
                   <TableCell>{data.animal}</TableCell>
                   <TableCell>{data.event_time}</TableCell>
-                  <TableCell>video placeholder</TableCell>
+                  <TableCell>{data.video}</TableCell>
                 </TableRow>
               </TableBody>
             )}
@@ -71,7 +71,7 @@ import {
 
 export default async function NodeListPage() {
   const node_list = await getNodeList()
-  //console.log(data)
+  //console.log(node_list)
   
     return (
       <div>

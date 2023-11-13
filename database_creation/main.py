@@ -5,8 +5,8 @@ from add_events import add_events
 
 # Connect to the database
 mydb = mysql.connector.connect(
-    host="localhost",
-    user="root",
+    host="hogrider-mysql.mysql.database.azure.com",
+    user="csce483",
     password="Hogr!ders483",
     database="csce483"
 )
