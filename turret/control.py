@@ -8,42 +8,77 @@ import concurrent.futures
 # look at library test files for context
 from RpiMotorLib import RpiMotorLib
 
-lastTime = None
-Setpoint = None
-errSum = None
-lastErr = None
-kp = None
-ki = None
-kd = None
 SampleTime = 1
 
-def Compute():
+YawlastTime = None
+YawSetpoint = None
+YawerrSum = None
+YawlastErr = None
+Yawkp = None
+Yawki = None
+Yawkd = None
+YawOutput = None
+
+def ComputeYaw():
 	# compute time delta
 	now = time.perf_counter()
-	timeChange = now - lastTime
+	timeChange = now - YawlastTime
 	if timeChange >= SampleTime:
 		# error computations
-		error = Setpoint
-		errSum += error * timeChange
-		dErr = (error - lastErr) / timeChange
+		error = YawSetpoint
+		YawerrSum += error * timeChange
+		dErr = (error - YawlastErr) / timeChange
 		
 		# compute output
-		Output = kp * error + ki * errSum + kd * dErr
+		YawOutput = Yawkp * error + Yawki * YawerrSum + Yawkd * dErr
 		
 		# memory
-		lastErr = error
-		lastTime = now
+		YawlastErr = error
+		YawlastTime = now
 
-def SetTunings(Kp, Ki, Kd):
-	kp = Kp
-	ki = Ki
-	kd = Kd
+def SetTuningsYaw(Kp, Ki, Kd):
+	Yawkp = Kp
+	Yawki = Ki
+	Yawkd = Kd
+
+PitchlastTime = None
+PitchSetpoint = None
+PitcherrSum = None
+PitchlastErr = None
+Pitchkp = None
+Pitchki = None
+Pitchkd = None
+PitchOutput = None
+
+def ComputePitch():
+	# compute time delta
+	now = time.perf_counter()
+	timeChange = now - PitchlastTime
+	if timeChange >= SampleTime:
+		# error computations
+		error = PitchSetpoint
+		PitcherrSum += error * timeChange
+		dErr = (error - PitchlastErr) / timeChange
+		
+		# compute output
+		PitchOutput = Pitchkp * error + Pitchki * PitcherrSum + Pitchkd * dErr
+		
+		# memory
+		PitchlastErr = error
+		PitchlastTime = now
+
+def SetTuningsPitch(Kp, Ki, Kd):
+	Pitchkp = Kp
+	Pitchki = Ki
+	Pitchkd = Kd
 
 def SetSampleTime(NewSampleTime):
 	if NewSampleTime > 0:
 		ratio = NewSampleTime/SampleTime
-		ki *= ratio
-		kd /= ratio
+		Yawki *= ratio
+		Yawkd /= ratio
+		Pitchki *= ratio
+		Pitchkd /= ratio
 		SampleTime = NewSampleTime
 
 pinsYaw = [17, 27, 22, 5]
