@@ -8,78 +8,45 @@ import concurrent.futures
 # look at library test files for context
 from RpiMotorLib import RpiMotorLib
 
-SampleTime = 1
-
-YawlastTime = None
-YawSetpoint = None
-YawerrSum = None
-YawlastErr = None
-Yawkp = None
-Yawki = None
-Yawkd = None
-YawOutput = None
-
-def ComputeYaw():
-	# compute time delta
-	now = time.perf_counter()
-	timeChange = now - YawlastTime
-	if timeChange >= SampleTime:
-		# error computations
-		error = YawSetpoint
-		YawerrSum += error * timeChange
-		dErr = (error - YawlastErr) / timeChange
-		
-		# compute output
-		YawOutput = Yawkp * error + Yawki * YawerrSum + Yawkd * dErr
-		
-		# memory
-		YawlastErr = error
-		YawlastTime = now
-
-def SetTuningsYaw(Kp, Ki, Kd):
-	Yawkp = Kp
-	Yawki = Ki
-	Yawkd = Kd
-
-PitchlastTime = None
-PitchSetpoint = None
-PitcherrSum = None
-PitchlastErr = None
-Pitchkp = None
-Pitchki = None
-Pitchkd = None
-PitchOutput = None
-
-def ComputePitch():
-	# compute time delta
-	now = time.perf_counter()
-	timeChange = now - PitchlastTime
-	if timeChange >= SampleTime:
-		# error computations
-		error = PitchSetpoint
-		PitcherrSum += error * timeChange
-		dErr = (error - PitchlastErr) / timeChange
-		
-		# compute output
-		PitchOutput = Pitchkp * error + Pitchki * PitcherrSum + Pitchkd * dErr
-		
-		# memory
-		PitchlastErr = error
-		PitchlastTime = now
-
-def SetTuningsPitch(Kp, Ki, Kd):
-	Pitchkp = Kp
-	Pitchki = Ki
-	Pitchkd = Kd
-
-def SetSampleTime(NewSampleTime):
-	if NewSampleTime > 0:
-		ratio = NewSampleTime/SampleTime
-		Yawki *= ratio
-		Yawkd /= ratio
-		Pitchki *= ratio
-		Pitchkd /= ratio
-		SampleTime = NewSampleTime
+class PID:
+	lastTime = None
+	Output = None
+	Setpoint = None
+	errSum = None
+	lastErr = None
+	kp = None
+	ki = None
+	kd = None
+	SampleTime = 1
+	
+	def Compute():
+		# compute time delta
+		now = time.perf_counter()
+		timeChange = (now - lastTime)
+		if timeChange >= SampleTime:
+			# error computations
+			error = Setpoint
+			errSum += (error * timeChange)
+			dErr = (error - lastErr) / timeChange
+			
+			# compute output
+			Output = (kp * error) + (ki * errSum) + (kd * dErr)
+			
+			# memory
+			lastErr = error
+			lastTime = now
+	
+	def SetTunings(Kp, Ki, Kd):
+		kp = Kp
+		ki = Ki * SampleTime
+		kd = Kd * SampleTime
+	
+	def SetSampleTime(NewSampleTime):
+		if NewSampleTime > 0:
+			ratio = NewSampleTime/SampleTime
+			ki *= ratio
+			kd /= ratio
+			SampleTime = NewSampleTime
 
 pinsYaw = [17, 27, 22, 5]
 pinsPitch = [23, 24, 25, 16]
