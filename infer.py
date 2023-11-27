@@ -1,67 +1,91 @@
+import cv2
+import torch
 import time
-import os
-from ftplib import FTP
-from roboflow import Roboflow
+from datetime import datetime
+import RPi.GPIO as GPIO
+import concurrent.futures
+from RpiMotorLib import RpiMotorLib
 
-# Initialize Roboflow
-rf = Roboflow(api_key="EkhI47vMKz00RgoE3lkh")
-project = rf.workspace().project("adps")
-model = project.version(2, local="http://localhost:9001/").model
+# Load the YOLOv5 model
+model = torch.hub.load('ultralytics/yolov5', 'custom', path='/home/csce483/Documents/apds/model/exp4/weights/best.pt')
+model.conf = 0.6  # Set confidence threshold
 
-def capture_video(video_path):
-    # Use libcamera-vid to capture a 5-second video
-    os.system(f"libcamera-vid -t 5000 -o {video_path}")
+# Initialize video capture for the webcam
+cap = cv2.VideoCapture(0)
 
-# def upload_to_ftp(video_path):
-#     # FTP server details
-#     FTP_SERVER = "hogrider-mysql.database.azure.com"
-#     FTP_USER = "csce483"
-#     FTP_PASS = "hogr!ders483"
-#     FTP_DEST_DIR = "your_destination_folder"
+# Define the codec and create VideoWriter object
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+out = None
+recording = False
+last_recorded_time = 0
 
-#     # Connect to the FTP server
-#     with FTP(FTP_SERVER) as ftp:
-#         ftp.login(user=FTP_USER, passwd=FTP_PASS)
-#         ftp.cwd(FTP_DEST_DIR)
-#         with open(video_path, "rb") as video_file:
-#             ftp.storbinary(f"STOR {os.path.basename(video_path)}", video_file)
-#         # Optionally, delete the video file after upload
-#         os.remove(video_path)
+# Folder to save videos
+ftp_folder = '/home/csce483/FTP/files'
 
-def convert_to_mp4(h264_video_path, mp4_video_path):
-    os.system(f"ffmpeg -framerate 24 -i {h264_video_path} -c copy {mp4_video_path}")
+GPIOyaw = [17, 27, 22, 5]
+GPIOpitch = [23, 24, 25, 16]
 
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(6, GPIO.OUT)
+
+motorYaw = RpiMotorLib.BYJMotor("Yaw", "28BYJ")
+motorPitch = RpiMotorLib.BYJMotor("Pitch", "28BYJ")
 
 while True:
-    # Define the classes of interest
-    classes_of_interest = {'wildboar', 'hawk', 'fox', 'coyote'}
+    print('beginning loop')
+    ret, frame = cap.read()
+    if not ret:
+        break
 
-    image_path = "/tmp/temp_image.jpg"
-    # Use libcamera-still to capture an image
-    os.system(f"libcamera-still -o {image_path}")
-    print("image taken")
+    current_time = time.time()
 
-    # Infer on the captured image
-    prediction = (model.predict(image_path, confidence=40, overlap=30).json()) 
+    # Perform object detection only if not currently recording
+    if not recording:
+        results = model(frame)
+        detections = results.xyxy[0].cpu().numpy()
 
-    print(prediction)
+        # Process detections and start recording if detected
+        for detection in detections:
+            print("detected something!")
+            x1, y1, x2, y2, conf, cls_id = detection
+            class_name = model.names[int(cls_id)]
 
-    # Check if any objects are detected
-    if any(pred.get('class') in classes_of_interest for pred in prediction.get('predictions', [])):
-        # Capture video in H.264 format
-        print("video taken")
-        h264_video_path = "/tmp/temp_video.h264"
-        capture_video(h264_video_path)
-        
-        # Convert the H.264 video to MP4 format
-        mp4_video_path = "/tmp/temp_video.mp4"
-        convert_to_mp4(h264_video_path, mp4_video_path)
-        
-        # Upload the MP4 video to FTP
-        # upload_to_ftp(mp4_video_path)
+            # Calculate the center of the bounding box (optional for turret aiming)
+            center_x = int((x1 + x2) / 2)
+            center_y = int((y1 + y2) / 2)
 
-        # Optionally, remove the temporary H.264 video file
-        os.remove(h264_video_path)
+            # Draw bounding box and label on the frame
+            cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
+            cv2.putText(frame, f'{class_name} {conf:.2f}', (int(x1), int(y1 - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-    # Wait for 1 second before capturing the next image
-    time.sleep(1)
+            # Start recording if there is a detection and it's been more than 5 seconds since last record
+            if (current_time - last_recorded_time > 5):
+                print('begin recording')
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                video_name = f'detection_{timestamp}.mp4'
+                video_path = f'{ftp_folder}/{video_name}'
+                out = cv2.VideoWriter(video_path, fourcc, 20.0, (640, 480))
+                recording = True
+                record_start_time = current_time
+                break  # Break after starting recording
+
+    # Record video for 5 seconds
+    if recording:
+        out.write(frame)
+        if (current_time - record_start_time) >= 5:  # Record for 5 seconds
+            print('recording for 5 seconds')
+            out.release()
+            recording = False
+            last_recorded_time = current_time
+
+    # Display the resulting frame
+    cv2.imshow('frame', frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+
+
+
+# Release the video capture and close all windows
+cap.release()
+cv2.destroyAllWindows()

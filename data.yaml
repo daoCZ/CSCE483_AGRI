@@ -1,0 +1,13 @@
+train: /content/drive/MyDrive/APDS/train/images
+val: /content/drive/MyDrive/APDS/valid/images
+test: /content/drive/MyDrive/APDS/test/images
+
+nc: 4
+names: ['Fox', 'coyote', 'hawk', 'wildboar']
+
+roboflow:
+  workspace: cs483-2qhol
+  project: adps
+  version: 7
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/cs483-2qhol/adps/dataset/7
