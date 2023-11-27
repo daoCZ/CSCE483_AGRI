@@ -74,7 +74,7 @@ import {
                   <TableCell>{data.event_id}</TableCell>
                   <TableCell>{data.animal}</TableCell>
                   <TableCell>{data.event_time}</TableCell>
-                  <TableCell>{node_ip[0].name}</TableCell>
+                  <TableCell>{data.video}</TableCell>
                 </TableRow>
               </TableBody>
             )}
