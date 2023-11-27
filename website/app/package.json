@@ -19,6 +19,8 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
+    "ftp": "^0.3.10",
+    "ftp-client": "^0.2.2",
     "lucide-react": "^0.289.0",
     "mysql2": "^3.6.2",
     "next": "13.5.4",

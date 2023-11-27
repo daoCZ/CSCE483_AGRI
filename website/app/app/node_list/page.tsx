@@ -36,13 +36,28 @@ import {
    
     return res.json()
   }
+
+  async function getNodeIP(node_id:any) {
+    const res = await fetch(`http://localhost:3000/api/${node_id}/node_ip`, { cache: 'no-store' })
+    
+    if (!res.ok) {
+      throw new Error('Failed to fetch data')
+    }
+   
+    return res.json()
+  }
   
+  async function downloadVideo(video_path:string,node_ip:string){
+
+  }
+
   async function NodeListCollapsible({node_id}:{node_id:any}){
-    let node_data = await getNodeData(node_id)
-    //console.log(node_data[1])
+    const [node_data, node_ip] = await Promise.all([getNodeData(node_id), getNodeIP(node_id)]);
+    //downloadVideo(data.video,node_ip[0].ip_address)
+    //console.log(node_ip[0].ip_address)
     return(
         <Collapsible key={node_id} className="border p-4">
-          <CollapsibleTrigger key={node_id}>Node {node_id}</CollapsibleTrigger>
+          <CollapsibleTrigger key={node_id}>{node_ip[0].name}</CollapsibleTrigger>
           <CollapsibleContent key={node_id}>
             <Table>
               <TableHeader>
@@ -59,7 +74,7 @@ import {
                   <TableCell>{data.event_id}</TableCell>
                   <TableCell>{data.animal}</TableCell>
                   <TableCell>{data.event_time}</TableCell>
-                  <TableCell>{data.video}</TableCell>
+                  <TableCell>{node_ip[0].name}</TableCell>
                 </TableRow>
               </TableBody>
             )}
