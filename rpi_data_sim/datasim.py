@@ -42,7 +42,7 @@ def check_node(mydb, mycursor):
 def event_sim(node_id, duration, mydb, mycursor):
 
     # Determine random number of events to print over duration
-    num_events = random.randint(1, 100)
+    num_events = random.randint(5, 15)
     print("Number of events: " + str(num_events))
 
     # Get time between events

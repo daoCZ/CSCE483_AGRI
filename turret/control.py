@@ -8,43 +8,45 @@ import concurrent.futures
 # look at library test files for context
 from RpiMotorLib import RpiMotorLib
 
-lastTime = None
-Setpoint = None
-errSum = None
-lastErr = None
-kp = None
-ki = None
-kd = None
-SampleTime = 1
-
-def Compute():
-	# compute time delta
-	now = time.perf_counter()
-	timeChange = now - lastTime
-	if timeChange >= SampleTime:
-		# error computations
-		error = Setpoint
-		errSum += error * timeChange
-		dErr = (error - lastErr) / timeChange
-		
-		# compute output
-		Output = kp * error + ki * errSum + kd * dErr
-		
-		# memory
-		lastErr = error
-		lastTime = now
-
-def SetTunings(Kp, Ki, Kd):
-	kp = Kp
-	ki = Ki
-	kd = Kd
-
-def SetSampleTime(NewSampleTime):
-	if NewSampleTime > 0:
-		ratio = NewSampleTime/SampleTime
-		ki *= ratio
-		kd /= ratio
-		SampleTime = NewSampleTime
+class PID:
+	lastTime = None
+	Output = None
+	Setpoint = None
+	errSum = None
+	lastErr = None
+	kp = None
+	ki = None
+	kd = None
+	SampleTime = 1
+	
+	def Compute():
+		# compute time delta
+		now = time.perf_counter()
+		timeChange = (now - lastTime)
+		if timeChange >= SampleTime:
+			# error computations
+			error = Setpoint
+			errSum += (error * timeChange)
+			dErr = (error - lastErr) / timeChange
+			
+			# compute output
+			Output = (kp * error) + (ki * errSum) + (kd * dErr)
+			
+			# memory
+			lastErr = error
+			lastTime = now
+	
+	def SetTunings(Kp, Ki, Kd):
+		kp = Kp
+		ki = Ki * SampleTime
+		kd = Kd * SampleTime
+	
+	def SetSampleTime(NewSampleTime):
+		if NewSampleTime > 0:
+			ratio = NewSampleTime/SampleTime
+			ki *= ratio
+			kd /= ratio
+			SampleTime = NewSampleTime
 
 pinsYaw = [17, 27, 22, 5]
 pinsPitch = [23, 24, 25, 16]
