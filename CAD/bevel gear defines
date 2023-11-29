@@ -1,0 +1,460 @@
+/*    
+    Bevel Gear pair
+    
+    This custom feature creates a bevel gear pair.
+    
+    Maybe not accurate enough for gear manufacturing!
+    I only wrote this script to 3D-print some simple gears...
+    
+    KNOWN BUGS:
+     - teeth mis-alignement with body
+     - may not generate with certain values
+    
+    TODO:
+     - make subfeatures (gearTooth2D, tooth...)
+     - apply filets
+     - use better tooth profile. See:
+         https://cad.onshape.com/documents/5742c8cde4b06c68b362d748/v/c65839fc6078faeb4d2aece1/e/01a666571e625f8b819fd75b
+     - fix limit conditions issues (boolean, self-intersecting loft...)
+*/
+
+FeatureScript 531;
+import(path : "onshape/std/geometry.fs", version : "531.0");
+
+
+annotation { "Feature Type Name": "Bevel Gear Pair", "Filter Selector": ["bevel", "gear"]}
+export const BevelGearPair = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation {"Name": "Number of teeth 1"}
+        isInteger(definition.Z1, TEETH_BOUNDS);
+        
+        annotation {"Name": "Number of teeth 2"}
+        isInteger(definition.Z2, TEETH_BOUNDS);
+
+        annotation {"Name": "Module"}
+        isReal(definition.m, MODULE_BOUNDS);
+
+        annotation {"Name": "Shafts angle"}
+        isAngle(definition.theta, SHAFT_ANGLE_BOUNDS);
+
+        annotation {"Name": "Teeth width"}
+        isLength(definition.e, TEETH_WIDTH_BOUNDS);
+        
+        annotation {"Name": "Height bottom"}
+        isLength(definition.h1, H1_BOUNDS);
+        
+        annotation {"Name": "Height inside"}
+        isLength(definition.h2, H2_BOUNDS);
+        
+        annotation {"Name": "Pressure angle"}
+        isAngle(definition.alpha, PRESSURE_ANGLE_BOUNDS);
+
+        annotation { "Name" : "Shaft hole 1" }
+        definition.shaftHole1 is boolean;
+
+        if (definition.shaftHole1) {
+            annotation { "Name" : "Shaft diameter 1" }
+            isLength(definition.shaftD1, CENTERHOLE_BOUNDS);
+
+            annotation { "Name" : "Keyway 1" }
+            definition.keyway1 is boolean;
+
+            if (definition.keyway1) {
+                annotation { "Name" : "Key width 1" }
+                isLength(definition.keyWidth1, KEY_BOUNDS);
+
+                annotation { "Name" : "Key height 1" }
+                isLength(definition.keyHeight1, KEY_BOUNDS);
+            }
+        }
+
+        annotation { "Name" : "Shaft hole 2" }
+        definition.shaftHole2 is boolean;
+
+        if (definition.shaftHole2) {
+            annotation { "Name" : "Shaft diameter 2" }
+            isLength(definition.shaftD2, CENTERHOLE_BOUNDS);
+
+            annotation { "Name" : "Keyway 2" }
+            definition.keyway2 is boolean;
+
+            if (definition.keyway2) {
+                annotation { "Name" : "Key width 2" }
+                isLength(definition.keyWidth2, KEY_BOUNDS);
+
+                annotation { "Name" : "Key height 2" }
+                isLength(definition.keyHeight2, KEY_BOUNDS);
+            }
+        }
+    }
+    
+    {
+        // lambdas
+        // pitch apex to outside pitch distance for a bevel gears pair
+        var pitchApex = function(r1, r2, theta) { return r2 * sin(theta) + (r2 * cos(theta) + r1) / tan(theta); };
+        
+        // cone distance (R) for a bevel gears pair
+        var coneDistance = function(r1, r2, theta) { return sqrt(pitchApex(r1, r2, theta) ^ 2 + r1 ^ 2); };
+
+        // common values for a gear pair
+        const addendum = 1 * definition.m * millimeter;
+        const dedendum = 1.25 * definition.m * millimeter;
+        const r1 = definition.m * definition.Z1 / 2 * millimeter;  // external pitch radius
+        const r2 = definition.m * definition.Z2 / 2 * millimeter;
+        const delta1 = atan(sin(definition.theta) / (definition.Z2 / definition.Z1 + cos(definition.theta)));
+        const delta2 = atan(sin(definition.theta) / (definition.Z1 / definition.Z2 + cos(definition.theta)));
+        const scale = 1 - definition.e / coneDistance(r1, r2, definition.theta);  // scale factor for teeth generation
+
+        // gear 1
+        var value1 = {
+            'Z': definition.Z1,
+            'delta': delta1,
+            'scale': scale,
+            'move': {
+                'align': 0 * degree,
+                'tr1': 0 * millimeter,
+                'rot': 0 * degree,
+                'tr2': 0 * millimeter
+            },
+            'shaftHole': {
+                'enable': definition.shaftHole1,
+                'diameter': definition.shaftD1,
+                'keyway': {
+                    'enable': definition.keyway1,
+                    'width': definition.keyWidth1,
+                    'height': definition.keyHeight1
+                }
+            }
+        };
+        bevelGear(context, id + "gear1", definition, value1);
+
+        // gear 2
+        var value2 = {
+            'Z': definition.Z2,
+            'delta': delta2,
+            'scale': scale,
+            'move': {
+                'align': (1 - definition.Z2 % 2) * 360 / definition.Z2 / 2 * degree,
+                'tr1': -pitchApex(r2, r1, definition.theta) - dedendum * sin(delta2),
+                'rot': definition.theta,
+                'tr2': pitchApex(r1, r2, definition.theta) + dedendum * sin(delta1)
+            },
+            'shaftHole': {
+                'enable': definition.shaftHole2,
+                'diameter': definition.shaftD2,
+                'keyway': {
+                    'enable': definition.keyway2,
+                    'width': definition.keyWidth2,
+                    'height': definition.keyHeight2
+                }
+            }
+        };
+        bevelGear(context, id + "gear2", definition, value2);
+    }
+);
+
+
+function bevelGear(context is Context, id is Id, definition is map, value is map)
+{
+    /*
+    value = {
+        Z,          // number of teeth
+        delta,      // pitch angle
+        scale,      // teeth reduction at inner
+        move: {     // move gear in position
+            align,  // align teeth angle
+            tr1,    // first translation
+            rot     // rotation (shaft angle for second gear)
+            tr2,    // second translation
+        },
+        shaftHole: {
+            enable,
+            diameter,
+            keyway: {
+                enable,
+                width,
+                height
+            }
+        }   
+    }
+    */
+
+    // compute gear geometry
+    const addendum = 1 * definition.m * millimeter;
+    const dedendum = 1.25 * definition.m * millimeter;
+    const r = definition.m * value.Z / 2 * millimeter;  // external pitch radius
+    const ri = r - definition.e * sin(value.delta);     // internal pitch radius
+    const h = dedendum * sin(value.delta) + definition.e * cos(value.delta) - dedendum * value.scale * sin(value.delta);
+    const ra1 = r + addendum * cos(value.delta);
+    const rf1 = r - dedendum * cos(value.delta);
+    const ra2 = ri + addendum * cos(value.delta) * value.scale;
+    const rf2 = ri - dedendum * cos(value.delta) * value.scale;
+    const rf1p = rf1 - definition.h1 / tan(value.delta);
+    const rf2p = rf2 - definition.h2 / tan(value.delta);
+    //const rf2pp = rf2 - h1 / tan(value.delta);
+
+// Gear body
+
+    const sketch1 = newSketchOnPlane(context, id + "sketch1", {
+        'sketchPlane': plane(vector(0, 0, 0) * millimeter, vector(0, -1, 0), vector(1, 0, 0))
+    });
+    skPolyline(sketch1, "polyline1", {
+        'points': [
+            vector(0 * millimeter, -definition.h1),
+            vector(rf1p, -definition.h1),
+            vector(rf1, 0 * millimeter),
+            vector(rf2, h),
+            vector(rf2p, h - definition.h2),
+            vector(0 * millimeter, h - definition.h2),
+            vector(0 * millimeter, -definition.h1)
+        ],
+    });
+    skSolve(sketch1);
+
+    opRevolve(context, id + "revolve1", {
+        'entities': qSketchRegion(id + "sketch1"),
+        'axis': line(vector(0, 0, 0) * millimeter, vector(0, 0, 1)),
+        'angleForward': 360 * degree
+    });
+
+    opDeleteBodies(context, id + "delete1", {
+        'entities' : qCreatedBy(id + "sketch1")
+    });
+
+
+// Gear teeth
+
+    // outer teeth profile
+    const sketch2 = newSketchOnPlane(context, id + "sketch2", {
+        'sketchPlane': plane(vector(0, 0, 0) * millimeter, vector(0, 0, 1), vector(1, 0, 0))
+    });
+    skPolyline(sketch2, "polyline2", {
+        points: gearTooth2D(definition, r / cos(value.delta), definition.m, definition.alpha),
+    });
+    skSolve(sketch2);
+
+    // inner teeth profile
+    const sketch3 = newSketchOnPlane(context, id + "sketch3", {
+        'sketchPlane': plane(vector(0 * millimeter, 0 * millimeter, definition.e), vector(0, 0, 1), vector(1, 0, 0))
+    });
+    skPolyline(sketch3, "polyline3", {
+        points: gearTooth2D(definition, value.scale * r / cos(value.delta), value.scale * definition.m, definition.alpha),
+    });
+    skSolve(sketch3);
+
+    // generate tooth body
+    opLoft(context, id + "loft1", {
+        'profileSubqueries': [
+            qCreatedBy(id + "sketch2", EntityType.FACE),
+            qCreatedBy(id + "sketch3", EntityType.FACE),
+        ],
+    });
+
+    opDeleteBodies(context, id + "delete2", {
+        'entities' : qUnion([
+            qCreatedBy(id + "sketch2"),
+            qCreatedBy(id + "sketch3")
+        ])
+    });
+
+    // move tooth back in place
+    const matrix1 = rotationMatrix3d(vector(1, 0, 0), value.delta);
+    const transform1 = transform(matrix1, vector(0, 0, 0) * millimeter);
+    const transform2 = transform(vector(0 * millimeter, r, dedendum * sin(value.delta)));
+    opTransform(context, id + "transform1", {
+            'bodies': qCreatedBy(id + "loft1", EntityType.BODY),
+            'transform': transform2 * transform1
+    });
+
+    // copy teeth all around
+    var transforms = [];
+    var names = [];
+    for (var i = 1; i < value.Z; i += 1) {
+        const matrix = rotationMatrix3d(vector(0, 0, 1), i * 360 / value.Z * degree);
+        transforms = append(transforms, transform(matrix, vector(0, 0, 0) * millimeter));
+        names = append(names, toString(i));
+    }
+    opPattern(context, id + "pattern1", {
+        'entities': qCreatedBy(id + "loft1", EntityType.BODY),
+        'transforms': transforms,
+        'instanceNames': names
+    });
+
+
+// Merge all parts
+
+    opBoolean(context, id + "boolean1", {
+        'tools': qCreatedBy(id, EntityType.BODY),
+        'operationType': BooleanOperationType.UNION
+    });
+
+
+// Shaft hole
+
+    if (value.shaftHole.enable) {
+        const sketch4 = newSketchOnPlane(context, id + "sketch4", {
+            'sketchPlane': plane(vector(0 * millimeter, 0 * millimeter, -definition.h1), vector(0, 0, 1), vector(1, 0, 0))
+        });
+        skCircle(sketch4, "circle1", {
+            'center' : vector(0, 0) * millimeter,
+            'radius' : value.shaftHole.diameter / 2
+        });
+
+        if (value.shaftHole.keyway.enable) {
+            skPolyline(sketch4, "polyline3", {
+                'points': [
+                    vector(-value.shaftHole.keyway.width / 2, 0 * millimeter),
+                    vector(-value.shaftHole.keyway.width / 2, (value.shaftHole.diameter + value.shaftHole.keyway.height) / 2),
+                    vector( value.shaftHole.keyway.width / 2, (value.shaftHole.diameter + value.shaftHole.keyway.height) / 2),
+                    vector( value.shaftHole.keyway.width / 2, 0 * millimeter),
+                    vector(-value.shaftHole.keyway.width / 2, 0 * millimeter),
+                ]
+            });
+        }
+        skSolve(sketch4);
+       
+        extrude(context, id + "extrude1", {
+            'entities': qCreatedBy(id + "sketch4", EntityType.FACE),
+            'endBound': BoundingType.BLIND,
+            'operationType': NewBodyOperationType.REMOVE,
+            'depth': definition.h1 + h - definition.h2,
+            'defaultScope': false,
+            'booleanScope': qCreatedBy(id + "revolve1", EntityType.BODY)
+        });
+
+        opDeleteBodies(context, id + "delete4", {
+            'entities' : qCreatedBy(id + "sketch4")
+        });
+    }
+    
+
+// Mate connector
+
+    opMateConnector(context, id + "mateConnector", {
+        "coordSystem" : {
+//            "origin": vector(0 * millimeter  , 0 * millimeter, 10 * millimeter + r * tan(90 * degree - value.delta)),
+            "origin": vector(0 * millimeter  , 0 * millimeter, dedendum * sin(value.delta)),
+            "xAxis": vector(1, 0, 0),
+            "zAxis": vector(0, 0, 1)
+            },
+        "owner" : qCreatedBy(id, EntityType.BODY)
+    });
+
+// Move gear in place
+
+    const matrix2 = rotationMatrix3d(vector(0, 0, 1), value.move.align);
+    const transform3 = transform(matrix2, vector(0, 0, 0) * millimeter);
+    const transform4 = transform(vector(0 * millimeter, 0 * millimeter, value.move.tr1));
+    const matrix3 = rotationMatrix3d(vector(1, 0, 0), value.move.rot);
+    const transform5 = transform(matrix3, vector(0, 0, 0) * millimeter);
+    const transform6 = transform(vector(0 * millimeter, 0 * millimeter, value.move.tr2));
+    opTransform(context, id + "transform2", {
+        'bodies': qCreatedBy(id, EntityType.BODY),
+        'transform': transform6 * transform5 * transform4 * transform3
+    });
+
+}
+
+
+function gearTooth2D(definition is map, r is ValueWithUnits, m is number, alpha is ValueWithUnits)
+{
+    // convert polar to cartesian coordinates
+    var polar = function(r, theta) { return r * vector(sin(theta), cos(theta)); };
+
+    // unwind a string this many degrees to go from radius r1 to radius r2
+    var iang = function(r1, r2) { return sqrt((round(1e15 * r2 / r1) / 1e15) ^ 2 - 1) / PI * 180 * degree - acos(r1 / r2); };
+
+    // point at radius d on the involute curve
+    var q6 = function(b, s, t, d) { return polar(d, s * (iang(b, d) + t)); };
+
+    // radius a fraction f up the curved side of the tooth
+    var q7 = function(f, r, b, r2, t, s) { return q6(b, s, t, (1 - f) * max(b, r) + f * r2); };
+
+    const addendum = 1 * m * millimeter;
+    const dedendum = 1.25 * m * millimeter;
+    const Z = 2 * r / (m * millimeter);                      // number of teeth
+    const ra = r + addendum;                                 // radius of outer circle (tête)
+    const rb = r * cos(alpha);                               // radius of base circle (base de la dent)
+    const rf = r - dedendum;                                 // radius of root circle (pied)
+    const w = m * PI / 2 * millimeter;                       // tooth width at pitch circle
+    const k = -iang(rb, r) - w / 2 / r / PI * 180 * degree;  // angle to where involute meets base circle on each side of tooth
+
+    const offset = vector(0 * millimeter, -r - definition.h1 / 10);  // bring back tooth at origin
+
+    var points;
+    if (rf < rb) {
+        points = [
+            polar(rf, k) + offset,
+            q7(0/5, rf, rb, ra, k,  1) + offset, q7(1/5, rf, rb, ra, k,  1) + offset, q7(2/5, rf, rb, ra, k,  1) + offset,
+            q7(3/5, rf, rb, ra, k,  1) + offset, q7(4/5, rf, rb, ra, k,  1) + offset, q7(5/5, rf, rb, ra, k,  1) + offset,
+            q7(5/5, rf, rb, ra, k, -1) + offset, q7(4/5, rf, rb, ra, k, -1) + offset, q7(3/5, rf, rb, ra, k, -1) + offset,
+            q7(2/5, rf, rb, ra, k, -1) + offset, q7(1/5, rf, rb, ra, k, -1) + offset, q7(0/5, rf, rb, ra, k, -1) + offset,
+            polar(rf, -k) + offset,
+            polar(rf, k) + offset  // close profile
+        ];
+    }
+    else {
+        points = [
+            q7(0/5, rf, rb, ra, k,  1) + offset, q7(1/5, rf, rb, ra, k,  1) + offset, q7(2/5, rf, rb, ra, k,  1) + offset,
+            q7(3/5, rf, rb, ra, k,  1) + offset, q7(4/5, rf, rb, ra, k,  1) + offset, q7(5/5, rf, rb, ra, k,  1) + offset,
+            q7(5/5, rf, rb, ra, k, -1) + offset, q7(4/5, rf, rb, ra, k, -1) + offset, q7(3/5, rf, rb, ra, k, -1) + offset,
+            q7(2/5, rf, rb, ra, k, -1) + offset, q7(1/5, rf, rb, ra, k, -1) + offset, q7(0/5, rf, rb, ra, k, -1) + offset,
+            q7(0/5, rf, rb, ra, k,  1) + offset  // close profile
+        ];
+    }
+
+    return points;
+}
+
+
+const TEETH_BOUNDS = {
+    (unitless) : [4, 25, 250]
+} as IntegerBoundSpec;
+
+const SHAFT_ANGLE_BOUNDS = {
+    (degree) : [5, 90, 175]
+} as AngleBoundSpec;
+
+const MODULE_BOUNDS = {
+    (unitless) : [0.25, 1, 5]
+} as RealBoundSpec;
+
+const TEETH_WIDTH_BOUNDS = {
+    (millimeter) : [0.1, 5, 100],
+    (centimeter) : 0.5,
+    (meter) : 0.005,
+    (inch) : 0.2
+} as LengthBoundSpec;
+
+const H1_BOUNDS = {
+    (millimeter) : [0.1, 1, 50],
+    (centimeter) : 0.1,
+    (meter) : 0.001,
+    (inch) : 0.0375
+} as LengthBoundSpec;
+
+const H2_BOUNDS = {
+    (millimeter) : [0.1, 0.5, 50],
+    (centimeter) : 0.05,
+    (meter) : 0.0005,
+    (inch) : 0.0175
+} as LengthBoundSpec;
+
+const PRESSURE_ANGLE_BOUNDS = {
+    (degree) : [14.999, 20, 25]
+} as AngleBoundSpec;
+
+const CENTERHOLE_BOUNDS = {
+    (millimeter) : [0.5, 3.0, 50],
+    (centimeter) : 0.3,
+    (meter) : 0.003,
+    (inch) : 0.150
+} as LengthBoundSpec;
+
+const KEY_BOUNDS = {
+    (millimeter) : [0.1, 1.0, 10],
+    (centimeter) : 0.1,
+    (meter) : 0.001,
+    (inch) : 0.050
+} as LengthBoundSpec;
